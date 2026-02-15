@@ -79,11 +79,41 @@ After adding DNS records, click "Verify" in Resend dashboard. Status should chan
 
 ---
 
-## Part 3: Port Allocation Strategy
+## Part 3: Sentry Error Tracking Setup
+
+### 3.1 Create Sentry Account
+
+1. Sign up at [sentry.io](https://sentry.io/signup/)
+2. Choose the free plan (5K errors/month)
+
+### 3.2 Create New Project
+
+1. In Sentry dashboard, click "Create Project"
+2. Select "Rails" as the platform
+3. Set alert frequency preferences
+4. Name your project (e.g., `my-app-production`)
+
+### 3.3 Get Your DSN
+
+1. After creating the project, you'll see your DSN (Data Source Name)
+2. It looks like: `https://abc123@o123.ingest.sentry.io/456`
+3. Copy this - you'll need it for your `.env` file
+
+### 3.4 Configure Environments (Optional)
+
+For better organization, create separate Sentry projects for staging/production:
+- `my-app-production`
+- `my-app-staging`
+
+Each will have its own DSN.
+
+---
+
+## Part 4: Port Allocation Strategy
 
 Since multiple apps run on the same server, each needs a unique port.
 
-### 3.1 Port Assignment Convention
+### 4.1 Port Assignment Convention
 
 ```
 3000 - psalm-learner (existing app)
@@ -93,7 +123,7 @@ Since multiple apps run on the same server, each needs a unique port.
 ...
 ```
 
-### 3.2 Check Available Ports
+### 4.2 Check Available Ports
 
 SSH into the server and check what's in use:
 
@@ -106,9 +136,9 @@ docker ps --format '{{.Names}}\t{{.Ports}}' | grep 127.0.0.1
 
 ---
 
-## Part 4: Server Setup (One-Time per App)
+## Part 5: Server Setup (One-Time per App)
 
-### 4.1 Create Storage Directory
+### 5.1 Create Storage Directory
 
 SSH into the server and create a volume directory for your app's database:
 
@@ -116,11 +146,14 @@ SSH into the server and create a volume directory for your app's database:
 ssh root@178.156.168.116
 sudo mkdir -p /var/lib/YOUR_APP_NAME
 sudo chown -R 1000:1000 /var/lib/YOUR_APP_NAME
+sudo chmod -R 755 /var/lib/YOUR_APP_NAME
 ```
+
+**IMPORTANT**: The `chown` command is critical! Rails runs as UID 1000 inside the Docker container (user `rails`), so the directory must be owned by UID 1000. If you skip this step, you'll get permission errors when Rails tries to write to the SQLite database.
 
 This directory will store your SQLite database and Active Storage files.
 
-### 4.2 Install nginx (if not already installed)
+### 5.2 Install nginx (if not already installed)
 
 ```bash
 # Check if nginx is installed
@@ -135,7 +168,7 @@ sudo systemctl start nginx
 sudo systemctl enable nginx
 ```
 
-### 4.3 Configure Firewall
+### 5.3 Configure Firewall
 
 Ensure ports 80 (HTTP) and 443 (HTTPS) are open:
 
@@ -147,9 +180,9 @@ sudo ufw reload
 
 ---
 
-## Part 5: SSL Certificate Setup
+## Part 6: SSL Certificate Setup
 
-### 5.1 Install Certbot
+### 6.1 Install Certbot
 
 ```bash
 ssh root@178.156.168.116
@@ -159,7 +192,7 @@ sudo apt update
 sudo apt install -y certbot python3-certbot-nginx
 ```
 
-### 5.2 Generate SSL Certificate
+### 6.2 Generate SSL Certificate
 
 **Important**: Run this AFTER configuring nginx (next section), or use standalone mode:
 
@@ -176,7 +209,7 @@ Follow prompts:
 - Agree to Terms of Service
 - Choose whether to redirect HTTP to HTTPS (recommended: yes)
 
-### 5.3 Verify Certificate
+### 6.3 Verify Certificate
 
 ```bash
 sudo certbot certificates
@@ -186,7 +219,7 @@ Certificates are stored at:
 - `/etc/letsencrypt/live/yourdomain.com/fullchain.pem`
 - `/etc/letsencrypt/live/yourdomain.com/privkey.pem`
 
-### 5.4 Set Up Auto-Renewal
+### 6.4 Set Up Auto-Renewal
 
 Certbot automatically configures renewal. Test it:
 
@@ -196,9 +229,9 @@ sudo certbot renew --dry-run
 
 ---
 
-## Part 6: nginx Configuration
+## Part 7: nginx Configuration
 
-### 6.1 Copy nginx Config to Server
+### 7.1 Copy nginx Config to Server
 
 From your local machine, copy the generated nginx config:
 
@@ -206,7 +239,7 @@ From your local machine, copy the generated nginx config:
 scp config/nginx-YOUR_APP_NAME.conf root@178.156.168.116:/etc/nginx/sites-available/YOUR_APP_NAME
 ```
 
-### 6.2 Enable the Site
+### 7.2 Enable the Site
 
 SSH into server:
 
@@ -223,7 +256,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### 6.3 Verify nginx is Running
+### 7.3 Verify nginx is Running
 
 ```bash
 sudo systemctl status nginx
@@ -231,16 +264,16 @@ sudo systemctl status nginx
 
 ---
 
-## Part 7: Local Environment Setup
+## Part 8: Local Environment Setup
 
-### 7.1 Create `.env` File
+### 8.1 Create `.env` File
 
 ```bash
 cd ~/workspace/YOUR_APP_NAME
 cp .env.example .env
 ```
 
-### 7.2 Edit `.env` with Real Values
+### 8.2 Edit `.env` with Real Values
 
 ```bash
 # Rails
@@ -251,9 +284,16 @@ KAMAL_REGISTRY_PASSWORD=your_docker_hub_access_token
 
 # Email
 RESEND_EMAIL_API_KEY=re_your_actual_resend_key
+
+# Error Tracking
+SENTRY_DSN=https://your_sentry_dsn_from_part_3
+
+# Analytics Dashboard (Blazer)
+BLAZER_USERNAME=admin
+BLAZER_PASSWORD=your_secure_password_here
 ```
 
-### 7.3 Create `.kamal/secrets`
+### 8.3 Create `.kamal/secrets`
 
 Kamal reads secrets from a file. Create it:
 
@@ -263,6 +303,9 @@ cat > .kamal/secrets << 'EOF'
 RAILS_MASTER_KEY=$RAILS_MASTER_KEY
 KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
 RESEND_EMAIL_API_KEY=$RESEND_EMAIL_API_KEY
+SENTRY_DSN=$SENTRY_DSN
+BLAZER_USERNAME=$BLAZER_USERNAME
+BLAZER_PASSWORD=$BLAZER_PASSWORD
 EOF
 ```
 
@@ -272,7 +315,7 @@ EOF
 echo ".kamal/secrets" >> .gitignore
 ```
 
-### 7.4 Get Docker Hub Access Token
+### 8.4 Get Docker Hub Access Token
 
 1. Go to [Docker Hub](https://hub.docker.com/)
 2. Settings → Security → New Access Token
@@ -280,9 +323,9 @@ echo ".kamal/secrets" >> .gitignore
 
 ---
 
-## Part 8: First Deployment
+## Part 9: First Deployment
 
-### 8.1 Verify Kamal Configuration
+### 12.1 Verify Kamal Configuration
 
 ```bash
 cat config/deploy.yml
@@ -294,7 +337,7 @@ Ensure:
 - Docker username is correct
 - Server IP is `178.156.168.116`
 
-### 8.2 Install Kamal (if not already)
+### 12.2 Install Kamal (if not already)
 
 ```bash
 gem install kamal
@@ -306,7 +349,7 @@ Or if using bundler:
 bundle exec kamal version
 ```
 
-### 8.3 Deploy!
+### 10.3 Deploy!
 
 ```bash
 # Source environment variables
@@ -327,7 +370,7 @@ This will:
 
 **Expected duration**: 5-10 minutes for first deploy.
 
-### 8.4 Verify Deployment
+### 9.4 Verify Deployment
 
 ```bash
 # Check app is running
@@ -343,9 +386,9 @@ curl https://yourdomain.com/up
 
 ---
 
-## Part 9: Ongoing Deployments
+## Part 10: Ongoing Deployments
 
-### 9.1 Regular Deploy
+### 12.1 Regular Deploy
 
 After making changes:
 
@@ -357,7 +400,7 @@ git commit -m "Your changes"
 source .env && kamal deploy
 ```
 
-### 9.2 Rollback
+### 12.2 Rollback
 
 If something goes wrong:
 
@@ -365,7 +408,7 @@ If something goes wrong:
 kamal rollback
 ```
 
-### 9.3 Useful Kamal Commands
+### 10.3 Useful Kamal Commands
 
 ```bash
 # View logs
@@ -392,11 +435,11 @@ kamal prune all
 
 ---
 
-## Part 10: Database Backups
+## Part 11: Database Backups
 
 Since we're using SQLite, backups are simple file copies.
 
-### 10.1 Manual Backup
+### 12.1 Manual Backup
 
 ```bash
 ssh root@178.156.168.116
@@ -404,7 +447,7 @@ cd /var/lib/YOUR_APP_NAME
 sudo tar -czf backup-$(date +%Y%m%d-%H%M%S).tar.gz production.sqlite3
 ```
 
-### 10.2 Automated Backups (Cron)
+### 12.2 Automated Backups (Cron)
 
 Create backup script on server:
 
@@ -446,9 +489,9 @@ crontab -e
 
 ---
 
-## Part 11: Monitoring and Logs
+## Part 12: Monitoring and Logs
 
-### 11.1 Application Logs
+### 12.1 Application Logs
 
 ```bash
 # Real-time logs
@@ -458,7 +501,7 @@ kamal app logs -f
 kamal app logs --tail 100
 ```
 
-### 11.2 nginx Logs
+### 12.2 nginx Logs
 
 ```bash
 ssh root@178.156.168.116
@@ -470,7 +513,7 @@ sudo tail -f /var/log/nginx/YOUR_APP_NAME_access.log
 sudo tail -f /var/log/nginx/YOUR_APP_NAME_error.log
 ```
 
-### 11.3 Health Check
+### 12.3 Health Check
 
 Your app has a `/up` health endpoint:
 
@@ -481,7 +524,7 @@ curl https://yourdomain.com/up
 
 ---
 
-## Part 12: Troubleshooting
+## Part 13: Troubleshooting
 
 ### Issue: Port Already Allocated
 
@@ -556,7 +599,7 @@ kamal app logs
 
 ---
 
-## Part 13: Security Checklist
+## Part 14: Security Checklist
 
 Before going live:
 
@@ -571,9 +614,9 @@ Before going live:
 
 ---
 
-## Part 14: Production Optimization
+## Part 15: Production Optimization
 
-### 14.1 Enable Force SSL
+### 15.1 Enable Force SSL
 
 In `config/environments/production.rb`:
 
@@ -581,16 +624,96 @@ In `config/environments/production.rb`:
 config.force_ssl = true
 ```
 
-### 14.2 Configure Action Cable (WebSockets)
+### 15.2 Configure Action Cable (WebSockets)
 
 If using WebSockets, ensure nginx config supports them (already included in template).
 
-### 14.3 Add Monitoring
+### 15.3 Error Tracking (Sentry)
+
+Sentry is already configured! Once deployed, errors will automatically be tracked. To verify:
+
+1. Visit your [Sentry dashboard](https://sentry.io/)
+2. Check that errors are being reported
+3. Set up alert rules for critical errors
+4. Invite team members if needed
+
+### 15.4 Analytics (Ahoy)
+
+**Ahoy is already configured!** All analytics data is stored in your database.
+
+**Access your analytics dashboard:**
+```
+https://yourdomain.com/blazer
+```
+
+**IMPORTANT - Secure Blazer in production:**
+
+Before deploying, add authentication to protect your analytics. Edit `config/initializers/blazer.rb`:
+
+```ruby
+Blazer.authenticate = lambda do |request|
+  # Option 1: HTTP Basic Auth
+  authenticate_or_request_with_http_basic do |username, password|
+    username == ENV["BLAZER_USERNAME"] && password == ENV["BLAZER_PASSWORD"]
+  end
+
+  # Option 2: Devise authentication (if using Devise)
+  # current_user&.admin?
+end
+```
+
+Then add to your `.env`:
+```bash
+BLAZER_USERNAME=admin
+BLAZER_PASSWORD=your_secure_password_here
+```
+
+**What Ahoy tracks automatically:**
+- Page views
+- Unique visitors
+- Session duration
+- Referrers
+- UTM parameters
+- Device/browser info
+- Geographic location (via IP)
+
+**Track custom events:**
+
+In your controllers or views:
+```ruby
+ahoy.track "Button Clicked", button: "Sign Up"
+ahoy.track "Purchase", amount: 99.99, product_id: @product.id
+```
+
+**Create custom Blazer queries:**
+
+1. Visit `/blazer`
+2. Click "New Query"
+3. Write SQL to analyze your data:
+
+```sql
+-- Top pages by visits (last 7 days)
+SELECT landing_page, COUNT(*) as visits
+FROM ahoy_visits
+WHERE started_at > NOW() - INTERVAL '7 days'
+GROUP BY landing_page
+ORDER BY visits DESC
+LIMIT 10;
+```
+
+**Why Ahoy is perfect for this stack:**
+- Free (no monthly costs)
+- Self-hosted (data in your SQLite database)
+- Privacy-first (no external tracking)
+- Flexible (query however you want)
+- Blazer provides beautiful dashboards
+
+### 15.5 Additional Monitoring
 
 Consider adding:
-- **AppSignal**: Application monitoring
-- **Uptime Robot**: Uptime monitoring
+- **Uptime Robot**: Free uptime monitoring (https://uptimerobot.com)
 - **Papertrail**: Log aggregation
+- **AppSignal**: Deep performance monitoring
 
 ---
 

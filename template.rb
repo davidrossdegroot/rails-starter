@@ -38,6 +38,14 @@ gem "solid_cable"
 gem "kamal", require: false
 gem "thruster", require: false
 
+# Error tracking
+gem "sentry-ruby"
+gem "sentry-rails"
+
+# Analytics
+gem "ahoy_matey"
+gem "blazer"
+
 # Lock rdoc to avoid warnings
 gem "rdoc", "~> 7.0.3"
 
@@ -104,6 +112,13 @@ end
       # Email (Resend)
       RESEND_EMAIL_API_KEY=your_resend_api_key_here
 
+      # Error Tracking (Sentry)
+      SENTRY_DSN=your_sentry_dsn_here
+
+      # Analytics Dashboard (Blazer)
+      BLAZER_USERNAME=admin
+      BLAZER_PASSWORD=change_this_secure_password
+
       # Add your app-specific environment variables below:
     ENV
   end
@@ -155,6 +170,54 @@ end
     RUBY
   end
 
+  # Configure Sentry for error tracking
+  create_file "config/initializers/sentry.rb" do
+    <<~RUBY
+      Sentry.init do |config|
+        config.dsn = ENV['SENTRY_DSN']
+        config.breadcrumbs_logger = [:active_support_logger, :http_logger]
+
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for performance monitoring.
+        # We recommend adjusting this value in production.
+        config.traces_sample_rate = 0.1
+
+        # Set profiles_sample_rate to profile 100%
+        # of sampled transactions.
+        # We recommend adjusting this value in production.
+        config.profiles_sample_rate = 0.1
+
+        # Only enable in production
+        config.enabled_environments = %w[production]
+      end
+    RUBY
+  end
+
+  # Install Ahoy for analytics
+  generate "ahoy:install"
+
+  # Install Blazer for analytics dashboard
+  generate "blazer:install"
+
+  # Run migrations for Ahoy and Blazer
+  rails_command "db:migrate"
+
+  # Add Ahoy JavaScript to application layout
+  inject_into_file "app/views/layouts/application.html.erb", after: "<%= javascript_importmap_tags %>\n" do
+    <<-ERB
+    <%= tag.script src: "https://unpkg.com/ahoy.js@0.4.2/dist/ahoy.js" %>
+    ERB
+  end
+
+  # Configure Blazer
+  inject_into_file "config/routes.rb", after: "Rails.application.routes.draw do\n" do
+    <<-RUBY
+  # Analytics dashboard (Blazer) - protect this in production!
+  mount Blazer::Engine, at: "blazer"
+
+    RUBY
+  end
+
   # Initial git commit
   git :init
   git add: "."
@@ -167,8 +230,10 @@ end
   say "  1. Review and update .env.example with your actual values"
   say "  2. Copy .env.example to .env and fill in secrets"
   say "  3. Read DEPLOYMENT.md for comprehensive deployment instructions"
-  say "  4. Your nginx config template is at: config/nginx-#{app_name}.conf"
-  say "  5. Run: bin/rails db:setup"
-  say "  6. Run: bin/dev"
+  say "  4. Check out README.md for recommended add-ons (Devise)"
+  say "  5. Analytics dashboard available at: /blazer (secure it in production!)"
+  say "  6. Your nginx config template is at: config/nginx-#{app_name}.conf"
+  say "  7. Run: bin/rails db:setup"
+  say "  8. Run: bin/dev"
   say "\n"
 end
