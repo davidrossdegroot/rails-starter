@@ -191,6 +191,9 @@ end
 
           # Only enable in production
           config.enabled_environments = %w[production]
+          # Associate events with a specific deployment/revision
+          app_revision = ENV['APP_REVISION'].presence
+          config.release = app_revision if app_revision.present?
         end
       end
     RUBY
