@@ -115,6 +115,8 @@ Devise provides:
 https://yourdomain.com/blazer
 ```
 
+**Security:** Blazer is protected by HTTP Basic Auth in production using `BLAZER_USERNAME` and `BLAZER_PASSWORD` from your environment variables. No authentication required in development.
+
 **Track custom events in your app:**
 ```ruby
 # Track a custom event
@@ -132,17 +134,12 @@ ahoy.track "Purchase", amount: 99.99, product_id: 123
 - Blazer provides beautiful SQL-based dashboards
 - Query your analytics data however you want
 
-**Securing Blazer in production:**
+**Blazer authentication:**
 
-Add authentication to `config/initializers/blazer.rb`:
-
-```ruby
-Blazer.authenticate = lambda do |request|
-  # Add your auth logic here
-  # Example: check if user is admin
-  current_user&.admin?
-end
-```
+By default, Blazer uses HTTP Basic Auth in production:
+- Username/password from `BLAZER_USERNAME` and `BLAZER_PASSWORD` env vars
+- No authentication required in development
+- Edit `config/initializers/blazer.rb` to customize (e.g., use Devise)
 
 **Alternative dashboards:**
 - **Avo** - Beautiful Rails admin panel

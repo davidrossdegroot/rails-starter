@@ -646,26 +646,21 @@ Sentry is already configured! Once deployed, errors will automatically be tracke
 https://yourdomain.com/blazer
 ```
 
-**IMPORTANT - Secure Blazer in production:**
+**Authentication:** Blazer is secured by default with HTTP Basic Auth in production:
+- Uses `BLAZER_USERNAME` and `BLAZER_PASSWORD` from your environment variables
+- No authentication in development (for convenience)
+- Browser will prompt for username/password when accessing `/blazer`
 
-Before deploying, add authentication to protect your analytics. Edit `config/initializers/blazer.rb`:
+**Customize authentication (optional):**
+
+If you're using Devise or want different auth logic, edit `config/initializers/blazer.rb`:
 
 ```ruby
 Blazer.authenticate = lambda do |request|
-  # Option 1: HTTP Basic Auth
-  authenticate_or_request_with_http_basic do |username, password|
-    username == ENV["BLAZER_USERNAME"] && password == ENV["BLAZER_PASSWORD"]
-  end
-
-  # Option 2: Devise authentication (if using Devise)
-  # current_user&.admin?
+  # Example: Require admin user via Devise
+  authenticate_user!
+  redirect_to root_path unless current_user&.admin?
 end
-```
-
-Then add to your `.env`:
-```bash
-BLAZER_USERNAME=admin
-BLAZER_PASSWORD=your_secure_password_here
 ```
 
 **What Ahoy tracks automatically:**

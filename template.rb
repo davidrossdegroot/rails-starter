@@ -228,10 +228,31 @@ end
     say "   Add this to your layout: <%= javascript_include_tag \"ahoy\", type: \"module\" %>", :yellow
   end
 
-  # Configure Blazer
+  # Configure Blazer with authentication
+  create_file "config/initializers/blazer.rb" do
+    <<~RUBY
+      # Blazer authentication - uses HTTP Basic Auth by default
+      # Override this if using Devise or other authentication system
+      Blazer.authenticate = lambda do |request|
+        if Rails.env.development?
+          true # No auth required in development
+        else
+          # HTTP Basic Auth in production/staging
+          authenticate_or_request_with_http_basic do |username, password|
+            username == ENV["BLAZER_USERNAME"] &&
+            password == ENV["BLAZER_PASSWORD"] &&
+            ENV["BLAZER_USERNAME"].present? &&
+            ENV["BLAZER_PASSWORD"].present?
+          end
+        end
+      end
+    RUBY
+  end
+
+  # Mount Blazer (authentication configured in initializer)
   inject_into_file "config/routes.rb", after: "Rails.application.routes.draw do\n" do
     <<-RUBY
-  # Analytics dashboard (Blazer) - protect this in production!
+  # Analytics dashboard (Blazer) - secured via HTTP Basic Auth
   mount Blazer::Engine, at: "blazer"
 
     RUBY
@@ -251,7 +272,7 @@ end
   say "  3. Run: bin/rails db:setup (creates database and runs migrations)"
   say "  4. Read DEPLOYMENT.md for comprehensive deployment instructions"
   say "  5. Check out README.md for recommended add-ons (Devise)"
-  say "  6. Analytics dashboard available at: /blazer (secure it in production!)"
+  say "  6. Analytics dashboard at /blazer (HTTP Basic Auth in production)"
   say "  7. Your nginx config template is at: config/nginx-#{app_name}.conf"
   say "  8. Run: bin/dev"
   say "\n"
