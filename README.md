@@ -97,8 +97,9 @@ Devise provides:
 
 **Already set up:**
 - ✅ Ahoy gem installed
+- ✅ Ahoy.js pinned via importmap (secure, no CDN dependencies)
 - ✅ Tracking JavaScript added to layout
-- ✅ Database tables created
+- ✅ Database migrations ready (run `bin/rails db:setup`)
 - ✅ Blazer dashboard mounted at `/blazer`
 
 **What Ahoy tracks:**
