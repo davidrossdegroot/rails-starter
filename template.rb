@@ -38,6 +38,14 @@ gem "solid_cable"
 gem "kamal", require: false
 gem "thruster", require: false
 
+# Error tracking
+gem "sentry-ruby"
+gem "sentry-rails"
+
+# Analytics
+gem "ahoy_matey"
+gem "blazer"
+
 # Lock rdoc to avoid warnings
 gem "rdoc", "~> 7.0.3"
 
@@ -104,6 +112,13 @@ end
       # Email (Resend)
       RESEND_EMAIL_API_KEY=your_resend_api_key_here
 
+      # Error Tracking (Sentry)
+      SENTRY_DSN=your_sentry_dsn_here
+
+      # Analytics Dashboard (Blazer)
+      BLAZER_USERNAME=admin
+      BLAZER_PASSWORD=change_this_secure_password
+
       # Add your app-specific environment variables below:
     ENV
   end
@@ -155,6 +170,94 @@ end
     RUBY
   end
 
+  # Configure Sentry for error tracking
+  create_file "config/initializers/sentry.rb" do
+    <<~RUBY
+      # Only initialize Sentry if DSN is configured
+      if ENV['SENTRY_DSN'].present?
+        Sentry.init do |config|
+          config.dsn = ENV['SENTRY_DSN']
+          config.breadcrumbs_logger = [:active_support_logger, :http_logger]
+
+          # Set traces_sample_rate to 1.0 to capture 100%
+          # of transactions for performance monitoring.
+          # We recommend adjusting this value in production.
+          config.traces_sample_rate = 0.1
+
+          # Set profiles_sample_rate to profile 100%
+          # of sampled transactions.
+          # We recommend adjusting this value in production.
+          config.profiles_sample_rate = 0.1
+
+          # Only enable in production
+          config.enabled_environments = %w[production]
+        end
+      end
+    RUBY
+  end
+
+  # Install Ahoy for analytics
+  generate "ahoy:install"
+
+  # Install Blazer for analytics dashboard
+  generate "blazer:install"
+
+  # Pin Ahoy.js via importmap (secure, no CDN dependencies)
+  run "bin/importmap pin ahoy.js@0.4.2"
+
+  # Add Ahoy JavaScript to application layout (with error handling)
+  layout_file = "app/views/layouts/application.html.erb"
+  if File.exist?(layout_file)
+    # Try to inject after javascript_importmap_tags
+    if File.read(layout_file).include?("javascript_importmap_tags")
+      inject_into_file layout_file, after: "<%= javascript_importmap_tags %>\n" do
+        <<-ERB
+    <%= javascript_include_tag "ahoy", type: "module" %>
+        ERB
+      end
+    else
+      # Fallback: inject in head section
+      inject_into_file layout_file, before: "</head>" do
+        <<-ERB
+    <%= javascript_include_tag "ahoy", type: "module" %>
+        ERB
+      end
+    end
+  else
+    say "⚠️  Warning: Could not find #{layout_file}. Please manually add Ahoy tracking.", :yellow
+    say "   Add this to your layout: <%= javascript_include_tag \"ahoy\", type: \"module\" %>", :yellow
+  end
+
+  # Configure Blazer with authentication
+  create_file "config/initializers/blazer.rb" do
+    <<~RUBY
+      # Blazer authentication - uses HTTP Basic Auth by default
+      # Override this if using Devise or other authentication system
+      Blazer.authenticate = lambda do |request|
+        if Rails.env.development?
+          true # No auth required in development
+        else
+          # HTTP Basic Auth in production/staging
+          authenticate_or_request_with_http_basic do |username, password|
+            username == ENV["BLAZER_USERNAME"] &&
+            password == ENV["BLAZER_PASSWORD"] &&
+            ENV["BLAZER_USERNAME"].present? &&
+            ENV["BLAZER_PASSWORD"].present?
+          end
+        end
+      end
+    RUBY
+  end
+
+  # Mount Blazer (authentication configured in initializer)
+  inject_into_file "config/routes.rb", after: "Rails.application.routes.draw do\n" do
+    <<-RUBY
+  # Analytics dashboard (Blazer) - secured via HTTP Basic Auth
+  mount Blazer::Engine, at: "blazer"
+
+    RUBY
+  end
+
   # Initial git commit
   git :init
   git add: "."
@@ -166,9 +269,11 @@ end
   say "\nNext steps:"
   say "  1. Review and update .env.example with your actual values"
   say "  2. Copy .env.example to .env and fill in secrets"
-  say "  3. Read DEPLOYMENT.md for comprehensive deployment instructions"
-  say "  4. Your nginx config template is at: config/nginx-#{app_name}.conf"
-  say "  5. Run: bin/rails db:setup"
-  say "  6. Run: bin/dev"
+  say "  3. Run: bin/rails db:setup (creates database and runs migrations)"
+  say "  4. Read DEPLOYMENT.md for comprehensive deployment instructions"
+  say "  5. Check out README.md for recommended add-ons (Devise)"
+  say "  6. Analytics dashboard at /blazer (HTTP Basic Auth in production)"
+  say "  7. Your nginx config template is at: config/nginx-#{app_name}.conf"
+  say "  8. Run: bin/dev"
   say "\n"
 end
