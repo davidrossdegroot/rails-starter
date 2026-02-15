@@ -1,0 +1,174 @@
+# Rails Application Template
+# Usage: rails new my_app -d sqlite3 -m https://raw.githubusercontent.com/YOU/rails-starter/main/template.rb
+
+def source_paths
+  [__dir__]
+end
+
+# Add standard gems
+gem_group :development, :test do
+  gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
+  gem "byebug", "~> 12.0"
+  gem "brakeman", require: false
+  gem "rubocop-rails-omakase", require: false
+  gem "factory_bot_rails", "~> 6.5"
+  gem "rspec-rails", "~> 8.0"
+end
+
+gem_group :development do
+  gem "web-console"
+  gem "dotenv"
+end
+
+gem_group :test do
+  gem "capybara"
+  gem "selenium-webdriver"
+  gem "shoulda-matchers", "~> 6.0"
+end
+
+# Essential gems
+gem "bcrypt", "~> 3.1.7"
+gem "tailwindcss-rails", "~> 4.3"
+gem "httparty"
+gem "solid_cache"
+gem "solid_queue"
+gem "solid_cable"
+
+# Deployment
+gem "kamal", require: false
+gem "thruster", require: false
+
+# Lock rdoc to avoid warnings
+gem "rdoc", "~> 7.0.3"
+
+after_bundle do
+  # Install RSpec
+  generate "rspec:install"
+
+  # Configure shoulda-matchers
+  inject_into_file "spec/rails_helper.rb", after: "RSpec.configure do |config|\n" do
+    <<-RUBY
+  # Shoulda Matchers configuration
+  config.include(Shoulda::Matchers::ActiveModel, type: :model)
+  config.include(Shoulda::Matchers::ActiveRecord, type: :model)
+    RUBY
+  end
+
+  append_to_file "spec/rails_helper.rb" do
+    <<-RUBY
+
+Shoulda::Matchers.configure do |config|
+  config.integrate do |with|
+    with.test_framework :rspec
+    with.library :rails
+  end
+end
+    RUBY
+  end
+
+  # Copy standard files
+  directory "files", ".", force: true
+
+  # Make hooks executable
+  chmod ".kamal/hooks/pre-deploy", 0755
+
+  # Prompt for app-specific configuration
+  app_name = ask("What is your app name? (e.g., 'my_app')")
+  docker_username = ask("What is your Docker Hub username?")
+  app_port = ask("What port should this app use? (e.g., 3000, 3001, 3002)")
+  primary_domain = ask("What is your primary domain? (e.g., example.com)")
+
+  # Generate Kamal deploy.yml from template
+  @app_name = app_name
+  @docker_username = docker_username
+  @app_port = app_port
+  @primary_domain = primary_domain
+
+  template "files/config/deploy.yml.tt", "config/deploy.yml"
+
+  # Generate nginx config from template
+  template "files/nginx/site.conf.tt", "config/nginx-#{app_name}.conf"
+
+  # Create .env.example with app-specific values
+  create_file ".env.example" do
+    <<~ENV
+      # Rails
+      RAILS_MASTER_KEY=your_master_key_here
+
+      # Database (not needed for sqlite, but useful for future)
+      # DATABASE_URL=sqlite3:storage/production.sqlite3
+
+      # Docker Registry
+      KAMAL_REGISTRY_PASSWORD=your_docker_hub_token_here
+
+      # Email (Resend)
+      RESEND_EMAIL_API_KEY=your_resend_api_key_here
+
+      # Add your app-specific environment variables below:
+    ENV
+  end
+
+  # Configure Action Mailer for Resend in all environments
+  inject_into_file "config/environments/development.rb", before: /^end\n/ do
+    <<-RUBY
+  # Configure Resend for email delivery in development
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: "smtp.resend.com",
+    port: 587,
+    domain: "localhost",
+    user_name: "resend",
+    password: ENV["RESEND_EMAIL_API_KEY"],
+    authentication: :plain,
+    enable_starttls_auto: true
+  }
+    RUBY
+  end
+
+  inject_into_file "config/environments/production.rb", before: /^end\n/ do
+    <<-RUBY
+  # Configure Resend for email delivery in production
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: "smtp.resend.com",
+    port: 587,
+    domain: "#{primary_domain}",
+    user_name: "resend",
+    password: ENV["RESEND_EMAIL_API_KEY"],
+    authentication: :plain,
+    enable_starttls_auto: true
+  }
+    RUBY
+  end
+
+  # Update production.rb for sqlite
+  gsub_file "config/environments/production.rb",
+            /config\.active_storage\.service = :.*/,
+            "config.active_storage.service = :local"
+
+  # Configure solid_queue in puma
+  inject_into_file "config/environments/production.rb", after: "config.eager_load = true\n" do
+    <<-RUBY
+
+  # Run Solid Queue in Puma process
+  config.solid_queue_in_puma = ENV.fetch("SOLID_QUEUE_IN_PUMA", "true") == "true"
+    RUBY
+  end
+
+  # Initial git commit
+  git :init
+  git add: "."
+  git commit: "-m 'Initial commit from rails-starter template\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>'"
+
+  say "\n" + "="*80
+  say "🎉 Your Rails app is ready!"
+  say "="*80
+  say "\nNext steps:"
+  say "  1. Review and update .env.example with your actual values"
+  say "  2. Copy .env.example to .env and fill in secrets"
+  say "  3. Read DEPLOYMENT.md for comprehensive deployment instructions"
+  say "  4. Your nginx config template is at: config/nginx-#{app_name}.conf"
+  say "  5. Run: bin/rails db:setup"
+  say "  6. Run: bin/dev"
+  say "\n"
+end

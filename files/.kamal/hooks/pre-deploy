@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Pre-deploy hook to stop old containers and free up the assigned port
+# This prevents "port already allocated" errors when deploying without kamal-proxy
+
+# Only run for actual deploys (not rollbacks or other commands)
+if [ "$KAMAL_COMMAND" = "rollback" ]; then
+  exit 0
+fi
+
+echo "🧹 Cleaning up old containers before deployment..."
+
+# Get the service name from config (available as KAMAL_SERVICE)
+SERVICE_NAME="${KAMAL_SERVICE:-app}"
+
+# For each host, stop old containers gracefully
+for host in $KAMAL_HOSTS; do
+  echo "  → Stopping old $SERVICE_NAME containers on $host..."
+
+  # Find and stop all containers for this service (old versions)
+  # Give them 30 seconds to gracefully shutdown
+  ssh root@$host "docker ps --filter 'label=service=$SERVICE_NAME' --filter 'label=role=web' --format '{{.Names}}' | xargs -r docker stop -t 30"
+
+  # Verify port is free (wait up to 10 seconds)
+  echo "  → Verifying assigned port is available..."
+  for i in {1..10}; do
+    if ssh root@$host "! docker ps --format '{{.Ports}}' | grep -q '127.0.0.1:'"; then
+      echo "  ✓ Port is free on $host"
+      break
+    fi
+    if [ $i -eq 10 ]; then
+      echo "  ⚠ Warning: Port may still be in use on $host"
+    fi
+    sleep 1
+  done
+done
+
+echo "✓ Pre-deploy cleanup complete"
+exit 0
