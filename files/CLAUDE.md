@@ -89,14 +89,18 @@ To deploy: `kamal deploy` from project root
 ### Environment Variables Needed
 - `RAILS_MASTER_KEY` - for encrypted credentials
 - `KAMAL_REGISTRY_PASSWORD` - for deployment (Docker Hub token)
-- `RESEND_EMAIL_API_KEY` - for transactional email delivery via Resend
+- `GMAIL_USERNAME` - Gmail address for sending emails
+- `GOOGLE_APP_PASSWORD` - Gmail App Password (requires 2FA enabled)
+- `SENTRY_DSN` - for error tracking via Sentry
 
 [Add any additional environment variables your app needs]
 
 ### Email Configuration
-- **Development**: Uses Resend SMTP (smtp.resend.com:587)
-- **Production**: Uses Resend SMTP with verified domain
-- **From address**: `noreply@YOUR_DOMAIN.com`
+- **Provider**: Gmail SMTP (smtp.gmail.com:587)
+- **Setup**: Create Gmail account, enable 2FA, generate App Password at https://myaccount.google.com/apppasswords
+- **Development**: Uses Gmail SMTP with App Password authentication
+- **Production**: Uses Gmail SMTP with App Password authentication
+- **From address**: Configure in `app/mailers/application_mailer.rb`
 
 ### Testing Strategy
 - RSpec for unit/integration tests
