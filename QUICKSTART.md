@@ -26,7 +26,8 @@ cp .env.example .env
 Edit `.env` and add:
 - `RAILS_MASTER_KEY` (from `config/master.key`)
 - `KAMAL_REGISTRY_PASSWORD` (Docker Hub token)
-- `RESEND_EMAIL_API_KEY` (from Resend dashboard)
+- `GMAIL_USERNAME` (your Gmail address)
+- `GOOGLE_APP_PASSWORD` (from https://myaccount.google.com/apppasswords - requires 2FA)
 
 ## 3. Local Development (1 minute)
 
@@ -44,9 +45,10 @@ Add DNS records for your domain:
 ```
 A     @     178.156.168.116
 A     www   178.156.168.116
-MX    @     feedback-smtp.eu.resend.com  (priority 10)
-TXT   @     v=spf1 include:resend.com ~all
+TXT   @     v=spf1 include:_spf.google.com ~all  (optional, for better deliverability)
 ```
+
+> **Note**: No MX records needed unless you're receiving email on this domain.
 
 Wait for DNS propagation (5-60 minutes).
 

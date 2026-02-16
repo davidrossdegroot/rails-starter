@@ -13,11 +13,11 @@ gem_group :development, :test do
   gem "rubocop-rails-omakase", require: false
   gem "factory_bot_rails", "~> 6.5"
   gem "rspec-rails", "~> 8.0"
+  gem "dotenv-rails"
 end
 
 gem_group :development do
   gem "web-console"
-  gem "dotenv"
 end
 
 gem_group :test do
@@ -109,8 +109,10 @@ end
       # Docker Registry
       KAMAL_REGISTRY_PASSWORD=your_docker_hub_token_here
 
-      # Email (Resend)
-      RESEND_EMAIL_API_KEY=your_resend_api_key_here
+      # Email (Gmail with App Password)
+      # Create a Gmail account, enable 2FA, then generate an App Password
+      GMAIL_USERNAME=your_gmail_address@gmail.com
+      GOOGLE_APP_PASSWORD=your_16_char_app_password_here
 
       # Error Tracking (Sentry)
       SENTRY_DSN=your_sentry_dsn_here
@@ -123,33 +125,48 @@ end
     ENV
   end
 
-  # Configure Action Mailer for Resend in all environments
+  # Configure Action Mailer for Gmail in all environments
+  # Enable error reporting in development
+  gsub_file "config/environments/development.rb",
+            /config\.action_mailer\.raise_delivery_errors = false/,
+            "config.action_mailer.raise_delivery_errors = true"
+
   inject_into_file "config/environments/development.rb", before: /^end\n/ do
     <<-RUBY
-  # Configure Resend for email delivery in development
+
+  # Gmail SMTP configuration for development
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.smtp_settings = {
-    address: "smtp.resend.com",
+    address: "smtp.gmail.com",
     port: 587,
-    domain: "localhost",
-    user_name: "resend",
-    password: ENV["RESEND_EMAIL_API_KEY"],
+    domain: "#{primary_domain}",
+    user_name: ENV["GMAIL_USERNAME"],
+    password: ENV["GOOGLE_APP_PASSWORD"],
     authentication: :plain,
     enable_starttls_auto: true
   }
     RUBY
   end
 
+  # Enable error reporting in production
+  gsub_file "config/environments/production.rb",
+            /# config\.action_mailer\.raise_delivery_errors = false/,
+            "config.action_mailer.raise_delivery_errors = true"
+
   inject_into_file "config/environments/production.rb", before: /^end\n/ do
     <<-RUBY
-  # Configure Resend for email delivery in production
+
+  # Set host to be used by links generated in mailer templates
+  config.action_mailer.default_url_options = { host: "#{primary_domain}", protocol: "https" }
+
+  # Gmail SMTP configuration for production
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.smtp_settings = {
-    address: "smtp.resend.com",
+    address: "smtp.gmail.com",
     port: 587,
     domain: "#{primary_domain}",
-    user_name: "resend",
-    password: ENV["RESEND_EMAIL_API_KEY"],
+    user_name: ENV["GMAIL_USERNAME"],
+    password: ENV["GOOGLE_APP_PASSWORD"],
     authentication: :plain,
     enable_starttls_auto: true
   }
@@ -272,11 +289,20 @@ end
   say "\nNext steps:"
   say "  1. Review and update .env.example with your actual values"
   say "  2. Copy .env.example to .env and fill in secrets"
-  say "  3. Run: bin/rails db:setup (creates database and runs migrations)"
-  say "  4. Read DEPLOYMENT.md for comprehensive deployment instructions"
-  say "  5. Check out README.md for recommended add-ons (Devise)"
-  say "  6. Analytics dashboard at /blazer (HTTP Basic Auth in production)"
-  say "  7. Your nginx config template is at: config/nginx-#{app_name}.conf"
-  say "  8. Run: bin/dev"
+  say "  3. Set up Gmail for email:"
+  say "     - Create/use Gmail account with 2FA enabled"
+  say "     - Generate App Password: https://myaccount.google.com/apppasswords"
+  say "     - Add GMAIL_USERNAME and GOOGLE_APP_PASSWORD to .env"
+  say "  4. Run: bin/rails db:setup (creates database and runs migrations)"
+  say "  5. Read DEPLOYMENT.md for comprehensive deployment instructions"
+  say "  6. Check out README.md for recommended add-ons (Devise)"
+  say "  7. Analytics dashboard at /blazer (HTTP Basic Auth in production)"
+  say "  8. Your nginx config template is at: config/nginx-#{app_name}.conf"
+  say "  9. Copy .kamal/secrets-example to .kamal/secrets for deployment"
+  say " 10. Run: bin/dev"
+  say "\n"
+  say "To test email, generate a test mailer:"
+  say "  rails g mailer Test test_email"
+  say "  View preview at: http://localhost:3000/rails/mailers"
   say "\n"
 end
