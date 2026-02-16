@@ -15,7 +15,13 @@ A production-ready Rails 8 application template with opinionated defaults for ra
 - **RSpec** with FactoryBot, Capybara, and Shoulda Matchers
 - **RuboCop Rails Omakase** for linting
 - **Brakeman** for security scanning
+- **bundler-audit** for gem vulnerability scanning
 - **dotenv-rails** for environment variable management
+
+### CI/CD
+- **GitHub Actions** workflows for automated testing and deployment
+- **Continuous Integration** runs security scans, linting, and tests on every PR
+- **Continuous Deployment** automatically deploys to production on merge to main
 
 ### Deployment
 - **Kamal 2** for containerized deployment
@@ -159,7 +165,7 @@ By default, Blazer uses HTTP Basic Auth in production:
 - Analytics: `ahoy_matey`, `blazer`
 - Deployment: `kamal`, `thruster`
 - Testing: `rspec-rails`, `factory_bot_rails`, `capybara`, `selenium-webdriver`, `shoulda-matchers`
-- Code quality: `rubocop-rails-omakase`, `brakeman`
+- Code quality: `rubocop-rails-omakase`, `brakeman`, `bundler-audit`
 
 ### Files Copied
 - `.rubocop.yml` - RuboCop configuration
@@ -228,6 +234,40 @@ SENTRY_DSN=xxx                 # Sentry DSN for error tracking
 BLAZER_USERNAME=xxx            # Blazer analytics dashboard username
 BLAZER_PASSWORD=xxx            # Blazer analytics dashboard password
 ```
+
+## CI/CD with GitHub Actions
+
+This template includes two GitHub Actions workflows:
+
+### Continuous Integration (`.github/workflows/ci.yml`)
+Runs automatically on every pull request with parallel jobs:
+
+1. **Security Scanning (Ruby)**: Runs Brakeman and bundler-audit to catch security vulnerabilities
+2. **Security Scanning (JavaScript)**: Audits importmap dependencies
+3. **Linting**: Runs RuboCop with intelligent caching for faster runs
+4. **Testing**: Runs full RSpec suite with Capybara system tests, uploads screenshots on failure
+
+### Continuous Deployment (`.github/workflows/deploy.yml`)
+Automatically deploys to production when code is merged to main:
+
+- Uses Kamal for zero-downtime deployments
+- Builds and pushes Docker images
+- Manages all secrets via GitHub Secrets
+
+### Setting Up GitHub Actions
+
+After creating your app from this template, configure these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
+
+**Required Secrets:**
+- `RAILS_MASTER_KEY` - Your Rails master key (from `config/master.key`)
+- `KAMAL_REGISTRY_PASSWORD` - Docker Hub access token
+- `KAMAL_REGISTRY_USERNAME` - Your Docker Hub username
+- `SSH_PRIVATE_KEY` - SSH private key for server access
+- `GMAIL_USERNAME` - Gmail address for sending emails
+- `GOOGLE_APP_PASSWORD` - Gmail App Password
+- `SENTRY_DSN` - Sentry DSN for error tracking
+
+Once secrets are configured, every PR will be automatically tested, and every merge to main will deploy to production!
 
 ## Deployment
 
