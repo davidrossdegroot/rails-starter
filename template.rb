@@ -10,6 +10,7 @@ gem_group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "byebug", "~> 12.0"
   gem "brakeman", require: false
+  gem "bundler-audit", require: false
   gem "rubocop-rails-omakase", require: false
   gem "factory_bot_rails", "~> 6.5"
   gem "rspec-rails", "~> 8.0"
@@ -52,6 +53,11 @@ gem "rdoc", "~> 7.0.3"
 after_bundle do
   # Install RSpec
   generate "rspec:install"
+
+  # Create binstubs for CI tools
+  run "bundle binstubs brakeman --force"
+  run "bundle binstubs bundler-audit --force"
+  run "bundle binstubs rubocop --force"
 
   # Configure shoulda-matchers
   inject_into_file "spec/rails_helper.rb", after: "RSpec.configure do |config|\n" do
