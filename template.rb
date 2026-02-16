@@ -13,9 +13,6 @@ gem_group :development, :test do
   gem "rubocop-rails-omakase", require: false
   gem "factory_bot_rails", "~> 6.5"
   gem "rspec-rails", "~> 8.0"
-end
-
-gem_group :development, :test do
   gem "dotenv-rails"
 end
 

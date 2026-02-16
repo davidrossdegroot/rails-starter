@@ -8,7 +8,7 @@ Comprehensive guide for deploying your Rails application to a Hetzner VPS with n
 - **Hetzner VPS**: Ubuntu server at `178.156.168.116` (already set up)
 - **Docker Hub account**: For hosting container images
 - **Domain name**: Registered and ready to configure
-- **Resend account**: For email delivery
+- **Gmail account**: With 2FA enabled for email delivery
 
 ---
 
@@ -29,17 +29,13 @@ A       @       178.156.168.116    Auto
 A       www     178.156.168.116    Auto
 ```
 
-**MX Records** (for Resend email):
-```
-Type    Name    Value                     Priority    TTL
-MX      @       feedback-smtp.eu.resend.com    10        Auto
-```
-
-**TXT Record** (for SPF - email authentication):
+**Optional SPF Record** (for better email deliverability with Gmail):
 ```
 Type    Name    Value                                      TTL
-TXT     @       v=spf1 include:resend.com ~all             Auto
+TXT     @       v=spf1 include:_spf.google.com ~all        Auto
 ```
+
+> **Note**: Gmail doesn't require MX records on your domain unless you're using Gmail for *receiving* emails. For sending only, just the SPF record is helpful.
 
 ### 1.3 Verify DNS Propagation
 
@@ -49,33 +45,35 @@ Wait 5-60 minutes for DNS propagation, then verify:
 # Check A record
 dig yourdomain.com +short
 # Should return: 178.156.168.116
-
-# Check MX record
-dig yourdomain.com MX +short
-# Should return: 10 feedback-smtp.eu.resend.com
 ```
 
 ---
 
-## Part 2: Resend Email Setup
+## Part 2: Gmail Email Setup
 
-### 2.1 Add Domain to Resend
+### 2.1 Create or Use Gmail Account
 
-1. Log in to [Resend Dashboard](https://resend.com/domains)
-2. Click "Add Domain"
-3. Enter your domain (e.g., `yourdomain.com`)
-4. Follow verification instructions (add DNS TXT record)
+1. Create a new Gmail account for your app (or use existing)
+   - Example: `myapp.notifications@gmail.com`
+   - Use a dedicated account for production apps (not personal email)
 
-### 2.2 Get API Key
+### 2.2 Enable 2-Factor Authentication
 
-1. Go to [API Keys](https://resend.com/api-keys)
-2. Create new API key
-3. Copy the key (starts with `re_`)
-4. Save it for later use
+1. Go to [Google Account Security](https://myaccount.google.com/security)
+2. Click "2-Step Verification"
+3. Follow the setup process to enable 2FA
+4. You can use SMS, authenticator app, or other methods
 
-### 2.3 Verify Domain
+### 2.3 Generate App Password
 
-After adding DNS records, click "Verify" in Resend dashboard. Status should change to "Verified" (may take up to 24 hours).
+1. After enabling 2FA, go to [App Passwords](https://myaccount.google.com/apppasswords)
+2. Select "Mail" and "Other (Custom name)"
+3. Enter your app name (e.g., "My Rails App")
+4. Click "Generate"
+5. **Copy the 16-character password** (you won't see it again)
+6. Save it for later use
+
+> **Note**: Gmail's free tier allows 500 emails/day, which is perfect for most applications. For higher volume, consider using Google Workspace or switching to a dedicated email service like Resend or SendGrid.
 
 ---
 
@@ -282,8 +280,9 @@ RAILS_MASTER_KEY=your_actual_master_key_from_config_master_key
 # Docker Registry
 KAMAL_REGISTRY_PASSWORD=your_docker_hub_access_token
 
-# Email
-RESEND_EMAIL_API_KEY=re_your_actual_resend_key
+# Email (Gmail)
+GMAIL_USERNAME=your_gmail_address@gmail.com
+GOOGLE_APP_PASSWORD=your_16_char_app_password
 
 # Error Tracking
 SENTRY_DSN=https://your_sentry_dsn_from_part_3
@@ -302,12 +301,15 @@ mkdir -p .kamal
 cat > .kamal/secrets << 'EOF'
 RAILS_MASTER_KEY=$RAILS_MASTER_KEY
 KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
-RESEND_EMAIL_API_KEY=$RESEND_EMAIL_API_KEY
+GMAIL_USERNAME=$GMAIL_USERNAME
+GOOGLE_APP_PASSWORD=$GOOGLE_APP_PASSWORD
 SENTRY_DSN=$SENTRY_DSN
 BLAZER_USERNAME=$BLAZER_USERNAME
 BLAZER_PASSWORD=$BLAZER_PASSWORD
 EOF
 ```
+
+> **Tip**: You can also copy `.kamal/secrets-example` to `.kamal/secrets` and fill in your values.
 
 **Important**: Add `.kamal/secrets` to `.gitignore`:
 
@@ -577,14 +579,25 @@ kamal app logs
 
 **Solution**:
 
-1. Check Resend API key is set: `kamal app exec "printenv RESEND_EMAIL_API_KEY"`
-2. Verify domain in Resend dashboard
-3. Check app logs: `kamal app logs | grep -i mail`
-4. Test in Rails console:
+1. Check Gmail credentials are set:
+   ```bash
+   kamal app exec "printenv GMAIL_USERNAME"
+   kamal app exec "printenv GOOGLE_APP_PASSWORD"
+   ```
+2. Verify 2FA is enabled on your Gmail account
+3. Verify App Password is correct (regenerate if needed)
+4. Check app logs: `kamal app logs | grep -i mail`
+5. Test in Rails console:
    ```ruby
    kamal console
    ActionMailer::Base.smtp_settings
    ```
+6. Check Gmail's sending limits (500 emails/day for free accounts)
+
+**Common Issues**:
+- **"Invalid credentials"**: App Password may be incorrect or expired
+- **"Authentication failed"**: 2FA not enabled on Gmail account
+- **"Daily sending quota exceeded"**: Hit Gmail's 500 email/day limit
 
 ### Issue: Database Locked
 
@@ -766,7 +779,7 @@ nginx proxies from:          443 (public HTTPS)
 - **Kamal docs**: https://kamal-deploy.org/
 - **Rails guides**: https://guides.rubyonrails.org/
 - **nginx docs**: https://nginx.org/en/docs/
-- **Resend docs**: https://resend.com/docs
+- **Gmail App Passwords**: https://support.google.com/accounts/answer/185833
 - **Let's Encrypt**: https://letsencrypt.org/docs/
 
 ---
