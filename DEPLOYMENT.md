@@ -8,7 +8,7 @@ Comprehensive guide for deploying your Rails application to a Hetzner VPS with n
 - **Hetzner VPS**: Ubuntu server at `178.156.168.116` (already set up)
 - **Docker Hub account**: For hosting container images
 - **Domain name**: Registered and ready to configure
-- **Gmail account**: With 2FA enabled for email delivery
+- **MailerSend account**: With a verified sending domain and SMTP credentials
 
 ---
 
@@ -29,13 +29,9 @@ A       @       178.156.168.116    Auto
 A       www     178.156.168.116    Auto
 ```
 
-**Optional SPF Record** (for better email deliverability with Gmail):
-```
-Type    Name    Value                                      TTL
-TXT     @       v=spf1 include:_spf.google.com ~all        Auto
-```
+**Email DNS Records**:
 
-> **Note**: Gmail doesn't require MX records on your domain unless you're using Gmail for *receiving* emails. For sending only, just the SPF record is helpful.
+MailerSend will provide DNS records for your sending domain, usually including SPF, DKIM, and return-path records. Add those records exactly as shown in MailerSend before relying on production email delivery.
 
 ### 1.3 Verify DNS Propagation
 
@@ -49,35 +45,33 @@ dig yourdomain.com +short
 
 ---
 
-## Part 2: Gmail Email Setup
+## Part 2: MailerSend Email Setup
 
-### 2.1 Create or Use Gmail Account
+### 2.1 Create MailerSend Account
 
-1. Create a new Gmail account for your app (or use existing)
-   - Example: `myapp.notifications@gmail.com`
-   - Use a dedicated account for production apps (not personal email)
+1. Sign up at [MailerSend](https://www.mailersend.com/)
+2. Create or select your sending domain
+3. Add MailerSend's DNS verification records at your domain registrar
+4. Wait for the domain to show as verified
 
-### 2.2 Enable 2-Factor Authentication
+### 2.2 Create SMTP Credentials
 
-1. Go to [Google Account Security](https://myaccount.google.com/security)
-2. Click "2-Step Verification"
-3. Follow the setup process to enable 2FA
-4. You can use SMS, authenticator app, or other methods
+1. In MailerSend, open SMTP settings for your verified domain
+2. Create SMTP credentials for the Rails app
+3. Copy the SMTP username and password
+4. Save them as `MAILERSEND_SMTP_USERNAME` and `MAILERSEND_SMTP_PASSWORD`
 
-### 2.3 Generate App Password
+### 2.3 Configure Sender Address
 
-1. After enabling 2FA, go to [App Passwords](https://myaccount.google.com/apppasswords)
-2. Select "Mail" and "Other (Custom name)"
-3. Enter your app name (e.g., "My Rails App")
-4. Click "Generate"
-5. **Copy the 16-character password** (you won't see it again)
-6. Save it for later use
+Set `MAILER_DEFAULT_FROM` to a sender on your verified domain:
 
-> **Note**: Gmail's free tier allows 500 emails/day, which is perfect for most applications. For higher volume, consider using Google Workspace or switching to a dedicated email service like Resend or SendGrid.
+```bash
+MAILER_DEFAULT_FROM="My Rails App <noreply@yourdomain.com>"
+```
 
 ---
 
-## Part 3: Sentry Error Tracking Setup
+## Part 3: Sentry Monitoring Setup
 
 ### 3.1 Create Sentry Account
 
@@ -280,16 +274,17 @@ RAILS_MASTER_KEY=your_actual_master_key_from_config_master_key
 # Docker Registry
 KAMAL_REGISTRY_PASSWORD=your_docker_hub_access_token
 
-# Email (Gmail)
-GMAIL_USERNAME=your_gmail_address@gmail.com
-GOOGLE_APP_PASSWORD=your_16_char_app_password
+# Email (MailerSend SMTP)
+MAILERSEND_DOMAIN=yourdomain.com
+MAILERSEND_SMTP_USERNAME=your_mailersend_smtp_username
+MAILERSEND_SMTP_PASSWORD=your_mailersend_smtp_password
+MAILER_DEFAULT_FROM="My Rails App <noreply@yourdomain.com>"
 
-# Error Tracking
+# Monitoring
 SENTRY_DSN=https://your_sentry_dsn_from_part_3
 
-# Analytics Dashboard (Blazer)
-BLAZER_USERNAME=admin
-BLAZER_PASSWORD=your_secure_password_here
+# Analytics (Google Analytics)
+GOOGLE_ANALYTICS_ID=G-XXXXXXXXXX
 ```
 
 ### 8.3 Create `.kamal/secrets`
@@ -301,11 +296,10 @@ mkdir -p .kamal
 cat > .kamal/secrets << 'EOF'
 RAILS_MASTER_KEY=$RAILS_MASTER_KEY
 KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
-GMAIL_USERNAME=$GMAIL_USERNAME
-GOOGLE_APP_PASSWORD=$GOOGLE_APP_PASSWORD
+MAILERSEND_SMTP_USERNAME=$MAILERSEND_SMTP_USERNAME
+MAILERSEND_SMTP_PASSWORD=$MAILERSEND_SMTP_PASSWORD
 SENTRY_DSN=$SENTRY_DSN
-BLAZER_USERNAME=$BLAZER_USERNAME
-BLAZER_PASSWORD=$BLAZER_PASSWORD
+GOOGLE_ANALYTICS_ID=$GOOGLE_ANALYTICS_ID
 EOF
 ```
 
@@ -579,25 +573,25 @@ kamal app logs
 
 **Solution**:
 
-1. Check Gmail credentials are set:
+1. Check MailerSend credentials are set:
    ```bash
-   kamal app exec "printenv GMAIL_USERNAME"
-   kamal app exec "printenv GOOGLE_APP_PASSWORD"
+   kamal app exec "printenv MAILERSEND_SMTP_USERNAME"
+   kamal app exec "printenv MAILERSEND_SMTP_PASSWORD"
    ```
-2. Verify 2FA is enabled on your Gmail account
-3. Verify App Password is correct (regenerate if needed)
+2. Verify the MailerSend domain is verified
+3. Verify the SMTP username/password are correct
 4. Check app logs: `kamal app logs | grep -i mail`
 5. Test in Rails console:
    ```ruby
    kamal console
    ActionMailer::Base.smtp_settings
    ```
-6. Check Gmail's sending limits (500 emails/day for free accounts)
+6. Verify `MAILER_DEFAULT_FROM` uses an address on your verified sending domain
 
 **Common Issues**:
-- **"Invalid credentials"**: App Password may be incorrect or expired
-- **"Authentication failed"**: 2FA not enabled on Gmail account
-- **"Daily sending quota exceeded"**: Hit Gmail's 500 email/day limit
+- **"Invalid credentials"**: SMTP username or password may be incorrect
+- **"Authentication failed"**: SMTP credentials may not be active for the verified domain
+- **Sender rejected**: `MAILER_DEFAULT_FROM` may not match a verified sending domain
 
 ### Issue: Database Locked
 
@@ -641,7 +635,7 @@ config.force_ssl = true
 
 If using WebSockets, ensure nginx config supports them (already included in template).
 
-### 15.3 Error Tracking (Sentry)
+### 15.3 Monitoring (Sentry)
 
 Sentry is already configured! Once deployed, errors will automatically be tracked. To verify:
 
@@ -650,78 +644,28 @@ Sentry is already configured! Once deployed, errors will automatically be tracke
 3. Set up alert rules for critical errors
 4. Invite team members if needed
 
-### 15.4 Analytics (Ahoy)
+### 15.4 Analytics (Google Analytics)
 
-**Ahoy is already configured!** All analytics data is stored in your database.
+Google Analytics is configured through a production-only GA4 tag in the application layout.
 
-**Access your analytics dashboard:**
-```
-https://yourdomain.com/blazer
-```
+**Setup:**
+1. Create a Google Analytics 4 property
+2. Copy the web data stream measurement ID, such as `G-XXXXXXXXXX`
+3. Set `GOOGLE_ANALYTICS_ID` in `.env`, `.kamal/secrets`, and GitHub Actions secrets
+4. Deploy, then verify traffic in the Google Analytics realtime report
 
-**Authentication:** Blazer is secured by default with HTTP Basic Auth in production:
-- Uses `BLAZER_USERNAME` and `BLAZER_PASSWORD` from your environment variables
-- No authentication in development (for convenience)
-- Browser will prompt for username/password when accessing `/blazer`
-
-**Customize authentication (optional):**
-
-If you're using Devise or want different auth logic, edit `config/initializers/blazer.rb`:
-
-```ruby
-Blazer.authenticate = lambda do |request|
-  # Example: Require admin user via Devise
-  authenticate_user!
-  redirect_to root_path unless current_user&.admin?
-end
-```
-
-**What Ahoy tracks automatically:**
-- Page views
-- Unique visitors
-- Session duration
-- Referrers
-- UTM parameters
-- Device/browser info
-- Geographic location (via IP)
-
-**Track custom events:**
-
-In your controllers or views:
-```ruby
-ahoy.track "Button Clicked", button: "Sign Up"
-ahoy.track "Purchase", amount: 99.99, product_id: @product.id
-```
-
-**Create custom Blazer queries:**
-
-1. Visit `/blazer`
-2. Click "New Query"
-3. Write SQL to analyze your data:
-
-```sql
--- Top pages by visits (last 7 days)
-SELECT landing_page, COUNT(*) as visits
-FROM ahoy_visits
-WHERE started_at > NOW() - INTERVAL '7 days'
-GROUP BY landing_page
-ORDER BY visits DESC
-LIMIT 10;
-```
-
-**Why Ahoy is perfect for this stack:**
-- Free (no monthly costs)
-- Self-hosted (data in your SQLite database)
-- Privacy-first (no external tracking)
-- Flexible (query however you want)
-- Blazer provides beautiful dashboards
+**Behavior:**
+- The tag only renders in production
+- Tracking is skipped when `GOOGLE_ANALYTICS_ID` is blank
+- Turbo page visits are tracked with `turbo:load`
+- No analytics data is stored in your application database
+- No self-hosted analytics dashboard is installed
 
 ### 15.5 Additional Monitoring
 
 Consider adding:
 - **Uptime Robot**: Free uptime monitoring (https://uptimerobot.com)
 - **Papertrail**: Log aggregation
-- **AppSignal**: Deep performance monitoring
 
 ---
 
@@ -779,7 +723,7 @@ nginx proxies from:          443 (public HTTPS)
 - **Kamal docs**: https://kamal-deploy.org/
 - **Rails guides**: https://guides.rubyonrails.org/
 - **nginx docs**: https://nginx.org/en/docs/
-- **Gmail App Passwords**: https://support.google.com/accounts/answer/185833
+- **MailerSend docs**: https://www.mailersend.com/help
 - **Let's Encrypt**: https://letsencrypt.org/docs/
 
 ---

@@ -26,8 +26,10 @@ cp .env.example .env
 Edit `.env` and add:
 - `RAILS_MASTER_KEY` (from `config/master.key`)
 - `KAMAL_REGISTRY_PASSWORD` (Docker Hub token)
-- `GMAIL_USERNAME` (your Gmail address)
-- `GOOGLE_APP_PASSWORD` (from https://myaccount.google.com/apppasswords - requires 2FA)
+- `MAILERSEND_SMTP_USERNAME` (MailerSend SMTP username)
+- `MAILERSEND_SMTP_PASSWORD` (MailerSend SMTP password)
+- `SENTRY_DSN` (Sentry DSN for monitoring)
+- `GOOGLE_ANALYTICS_ID` (Google Analytics measurement ID)
 
 ## 3. Local Development (1 minute)
 
@@ -45,10 +47,10 @@ Add DNS records for your domain:
 ```
 A     @     178.156.168.116
 A     www   178.156.168.116
-TXT   @     v=spf1 include:_spf.google.com ~all  (optional, for better deliverability)
+...   MailerSend verification records from your MailerSend dashboard
 ```
 
-> **Note**: No MX records needed unless you're receiving email on this domain.
+> **Note**: Add the MailerSend verification records for your sending domain before relying on production email.
 
 Wait for DNS propagation (5-60 minutes).
 

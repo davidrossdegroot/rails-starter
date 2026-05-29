@@ -89,18 +89,21 @@ To deploy: `kamal deploy` from project root
 ### Environment Variables Needed
 - `RAILS_MASTER_KEY` - for encrypted credentials
 - `KAMAL_REGISTRY_PASSWORD` - for deployment (Docker Hub token)
-- `GMAIL_USERNAME` - Gmail address for sending emails
-- `GOOGLE_APP_PASSWORD` - Gmail App Password (requires 2FA enabled)
-- `SENTRY_DSN` - for error tracking via Sentry
+- `MAILERSEND_DOMAIN` - MailerSend sending domain
+- `MAILERSEND_SMTP_USERNAME` - MailerSend SMTP username
+- `MAILERSEND_SMTP_PASSWORD` - MailerSend SMTP password
+- `MAILER_DEFAULT_FROM` - default sender address for application mail
+- `SENTRY_DSN` - for error tracking and monitoring via Sentry
+- `GOOGLE_ANALYTICS_ID` - Google Analytics measurement ID for production analytics
 
 [Add any additional environment variables your app needs]
 
 ### Email Configuration
-- **Provider**: Gmail SMTP (smtp.gmail.com:587)
-- **Setup**: Create Gmail account, enable 2FA, generate App Password at https://myaccount.google.com/apppasswords
-- **Development**: Uses Gmail SMTP with App Password authentication
-- **Production**: Uses Gmail SMTP with App Password authentication
-- **From address**: Configure in `app/mailers/application_mailer.rb`
+- **Provider**: MailerSend SMTP (`smtp.mailersend.net:587`)
+- **Setup**: Verify a sending domain in MailerSend and create SMTP credentials
+- **Development**: Uses MailerSend SMTP credentials from the environment
+- **Production**: Uses MailerSend SMTP credentials from the environment
+- **From address**: Configure with `MAILER_DEFAULT_FROM`
 
 ### Testing Strategy
 - RSpec for unit/integration tests

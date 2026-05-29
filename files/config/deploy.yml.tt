@@ -28,11 +28,16 @@ registry:
 env:
   secret:
     - RAILS_MASTER_KEY
-    - GMAIL_USERNAME
-    - GOOGLE_APP_PASSWORD
+    - MAILERSEND_SMTP_USERNAME
+    - MAILERSEND_SMTP_PASSWORD
     - SENTRY_DSN
+    - GOOGLE_ANALYTICS_ID
   clear:
     APP_REVISION: ${APP_REVISION}
+
+    # Email (MailerSend SMTP)
+    MAILERSEND_DOMAIN: <%= @primary_domain %>
+    MAILER_DEFAULT_FROM: "<%= @mailer_default_from %>"
 
     # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
     # When you start using multiple servers, you should split out job processing to a dedicated machine.
