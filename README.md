@@ -131,7 +131,7 @@ View traffic and events in your Google Analytics property.
 
 ### Files Copied
 - `.rubocop.yml` - RuboCop configuration
-- `.ruby-version` - Ruby 4.0.1
+- `.ruby-version` - Ruby 4.0.9
 - `Dockerfile` - Optimized for production with SQLite3
 - `config/deploy.yml` - Kamal deployment configuration
 - `.kamal/hooks/pre-deploy` - Automatic container cleanup
