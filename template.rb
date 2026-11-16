@@ -2,8 +2,10 @@
 # Usage: rails new my_app -d sqlite3 -m https://raw.githubusercontent.com/YOU/rails-starter/main/template.rb
 
 def source_paths
-  [__dir__]
+  [ __dir__, *super ]
 end
+
+use_tailwind = yes?("Include Tailwind CSS? [y/N]")
 
 # Add standard gems
 gem_group :development, :test do
@@ -11,8 +13,8 @@ gem_group :development, :test do
   gem "brakeman", require: false
   gem "bundler-audit", require: false
   gem "rubocop-rails-omakase", require: false
-  gem "factory_bot_rails", "~> 6.5"
-  gem "rspec-rails", "~> 8.0"
+  gem "factory_bot_rails", "~> 6.5", ">= 6.5.1"
+  gem "rspec-rails", "~> 8.1"
   gem "dotenv-rails"
 end
 
@@ -23,12 +25,12 @@ end
 gem_group :test do
   gem "capybara"
   gem "selenium-webdriver"
-  gem "shoulda-matchers", "~> 6.0"
+  gem "shoulda-matchers", "~> 8.0", ">= 8.0.1"
 end
 
 # Essential gems
-gem "bcrypt", "~> 3.1.7"
-gem "tailwindcss-rails", "~> 4.3"
+gem "bcrypt", "~> 3.1.22"
+gem "tailwindcss-rails", "~> 4.7" if use_tailwind
 gem "httparty"
 gem "solid_cache"
 gem "solid_queue"
@@ -44,10 +46,13 @@ gem "sentry-rails"
 
 # Analytics are handled by Google Analytics via the application layout.
 
-# Lock rdoc to avoid warnings
-gem "rdoc", "~> 7.0.3"
+# Use the current RDoc release with Ruby 4.0
+gem "rdoc", "~> 8.1"
 
 after_bundle do
+  # Create the stylesheet and development commands required by Tailwind.
+  rails_command "tailwindcss:install" if use_tailwind
+
   # Install RSpec
   generate "rspec:install"
 

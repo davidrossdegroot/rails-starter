@@ -11,6 +11,7 @@ rails new my_app \
 ```
 
 **You'll be prompted for:**
+- Whether to include Tailwind CSS (No by default; press Enter for plain CSS)
 - App name (e.g., `my_blog`)
 - Docker Hub username
 - Port number (e.g., `3000`, `3001`, `3002`)
