@@ -7,7 +7,7 @@ A production-ready Rails 8 application template with opinionated defaults for ra
 ### Tech Stack
 - **Rails 8.1** with modern defaults
 - **SQLite3** for all environments (dev/test/prod)
-- **Tailwind CSS 4.3** for styling
+- **Plain CSS** by default, with optional Tailwind CSS
 - **Hotwire** (Turbo + Stimulus) for interactivity
 - **Solid Queue/Cache/Cable** for background jobs, caching, and WebSockets
 
@@ -41,10 +41,13 @@ rails new my_app \
 ```
 
 During setup, you'll be prompted for:
+- **Include Tailwind CSS?** (defaults to No)
 - **App name** (e.g., `my_blog`)
 - **Docker Hub username**
 - **Port number** (e.g., `3000`, `3001`, `3002` - each app needs a unique port)
 - **Primary domain** (e.g., `myblog.com`)
+
+Plain CSS lives in `app/assets/stylesheets/application.css` and needs no CSS build process. Choose Yes at the Tailwind prompt to install Tailwind and start its watcher with `bin/dev`.
 
 ### Post-Setup Steps
 
@@ -119,7 +122,7 @@ View traffic and events in your Google Analytics property.
 
 ### Gems Added
 - Authentication: `bcrypt`
-- Styling: `tailwindcss-rails`
+- Styling (opt-in): `tailwindcss-rails`
 - HTTP client: `httparty`
 - Background jobs: `solid_queue`
 - Caching: `solid_cache`

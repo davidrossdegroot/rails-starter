@@ -21,7 +21,7 @@
 ### Frontend: Modern Rails Stack
 - **Stimulus.js** controllers for interactive features
 - **Turbo** for SPA-like navigation
-- **Tailwind CSS** for styling (v4.3)
+- **Plain CSS** by default in `app/assets/stylesheets/application.css`; Tailwind CSS is optional at setup
 - **Importmap** for JavaScript module management
 
 ### External Services (if applicable)
@@ -48,7 +48,7 @@ Post
 - [Add your routes here]
 
 ### Development Commands
-- Start: `bin/dev` (starts Rails server and Tailwind CSS)
+- Start: `bin/dev` (starts Rails; also watches CSS if Tailwind was selected)
 - Tests: `rspec`
 - Console: `bin/rails console`
 - Linting: `rubocop`
@@ -142,7 +142,7 @@ To deploy: `kamal deploy` from project root
 
 ```bash
 # Development
-bin/dev                          # Start server with Tailwind watch
+bin/dev                          # Start Rails; includes a watcher when Tailwind is installed
 bin/rails console                # Rails console
 bin/rails routes                 # View all routes
 

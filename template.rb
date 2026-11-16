@@ -5,6 +5,8 @@ def source_paths
   [ __dir__, *super ]
 end
 
+use_tailwind = yes?("Include Tailwind CSS? [y/N]")
+
 # Add standard gems
 gem_group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -28,7 +30,7 @@ end
 
 # Essential gems
 gem "bcrypt", "~> 3.1.22"
-gem "tailwindcss-rails", "~> 4.7"
+gem "tailwindcss-rails", "~> 4.7" if use_tailwind
 gem "httparty"
 gem "solid_cache"
 gem "solid_queue"
@@ -49,7 +51,7 @@ gem "rdoc", "~> 8.1"
 
 after_bundle do
   # Create the stylesheet and development commands required by Tailwind.
-  rails_command "tailwindcss:install"
+  rails_command "tailwindcss:install" if use_tailwind
 
   # Install RSpec
   generate "rspec:install"
